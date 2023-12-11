@@ -1,6 +1,6 @@
 # app.py
 
-from flask import Flask,jsonify,request
+from flask import Flask,jsonify,request,send_file
 import datetime as dt
 import requests
 import json
@@ -11,11 +11,24 @@ from datetime import datetime,timedelta
 import numpy as np
 import cv2
 import numpy as np
+import joblib
+import sklearn
+import os
+import tempfile
+
+
+
 
 
 
 
 app = Flask(__name__)
+
+
+@app.route('/')
+def home():
+    return 'haii'
+
 
 @app.route('/current_weather', methods=['POST'])
 def weather():
@@ -164,48 +177,69 @@ def get_json_data():
     return jsonify({"data": list_of_dicts})
 
 
-@app.route('/formation_img', methods=['POST'])
+
+
+@app.route('/formation_img', methods=['POST', 'GET'])
 def hformation_img():
-    try:
-        image_file = request.files['image']
-        player_id = request.form.get('id')
+    if request.method == 'POST':
+            image_file = request.files['image']
+            image_array = np.frombuffer(image_file.read(), np.uint8)
+            img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-        image_array = np.fromstring(image_file.read(), np.uint8)
-        img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            if img is not None:
+                # Display the image using OpenCV
+                cv2.imshow('Image', img)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
 
-        if img is not None:
-            haar_cascade=cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
-            image= cv2.resize(img, (300, 400))
+                return "Image displayed successfully"
 
-            try :
-                faces=haar_cascade.detectMultiScale(image,1.1,9)
+    return "Invalid request"    
+        # try:
+    #     image_file = request.files['image']
 
-                if len(faces) == 1:
-                    x, y, width, height = faces[0][0],faces[0][1],faces[0][2],faces[0][3]  # Adjust these values as needed
+        # image_array = np.frombuffer(image_file.read(), np.uint8)
+        # img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-                    cropped_image = image[y:y+height, x:x+width]
+        # if img is not None:
+        #     haar_cascade = cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
+        #     image = cv2.resize(img, (300, 400))
 
-                    cv2.imshow( 'cropped_image',cropped_image)
-                    cv2.waitKey(0)
-                    cv2.destroyAllWindows()
+    #         try:
+    #             faces = haar_cascade.detectMultiScale(image, 1.1, 9)
 
-            except:
-                print('choose another image')
-            cv2.imshow( 'image',image)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+    #             if len(faces) == 1:
+    #                 x, y, width, height = faces[0]
+    #                 cropped_image = image[y:y + height, x:x + width]
 
-        #     cv2.waitKey(0)
-        #     cv2.destroyAllWindows()
+    #                 # Save cropped image as a temporary file
+    #                 _, temp_filename = tempfile.mkstemp(suffix=".jpg")
+    #                 cv2.imwrite(temp_filename, cropped_image)
+
+    #                 # Return the temporary file
+    #                 return send_file(temp_filename, mimetype='image/jpeg', as_attachment=True, download_name='cropped_image.jpg')
+
+    #         except:
+    #             # Save original image as a temporary file
+    #             _, temp_filename = tempfile.mkstemp(suffix=".jpg")
+    #             cv2.imwrite(temp_filename, image)
+
+    #             # Return the temporary file
+    #             return send_file(temp_filename, mimetype='image/jpeg', as_attachment=True, download_name='original_image.jpg')
+
+    #     elif img is None:
+    #         image_path = 'face 13.jpg'
+    #         return send_file(image_path, mimetype='image/jpeg')
+
+    #     else:
+    #         image_path = 'face 13.jpg'
+    #         return send_file(image_path, mimetype='image/jpeg')
+
+    # except Exception as e:
+    #     return jsonify({"error": 'error'})
 
 
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-    return 'Image processed successfully!'
-
-
-@app.route('/dynamic_discount', methods=['POST'])
+@app.route('/dynamic_discount')
 def dynamic_discount():
     predict_data=[]
     date_string='06,12,1998'         #____________________________________________________________________
@@ -230,10 +264,10 @@ def dynamic_discount():
 
     
     #   customer level
-    play_ratio= 'no_of_play'/90  #_____________________________________________________________________
+    # play_ratio= 'no_of_play'/90  _____________________________________________________________________
     play_ratio=.30
     if play_ratio <=.05:
-        predict_data.append(0)_
+        predict_data.append(0)
     if play_ratio < .35:
         predict_data.append(1)
     if play_ratio >= .35:
@@ -254,14 +288,39 @@ def dynamic_discount():
     turf_rating = 5 #____________________________________________________________________________
     predict_data.append(turf_rating)
 
+
+    weather_conditions=['T-Storms','Scattered T-Storms']
+    weather_c='Scattered T-Storms'   #___________________________________________________
+    if weather_c in weather_conditions:
+        predict_data.append(1)
     
+    else:
+        predict_data.append(0)
 
 
+    model=joblib.load('dynamic_discound_model')
+    result =model.predict([predict_data])*1000
 
 
+    # result =predict_data
+    return {'discount_price':str(result),'list':predict_data}
 
 
-    return jsonify()
+    # return jsonify()
+
+
+@app.route('/modify_price',methods=['POST','GET'])
+def modify_price():
+    price=1200
+    return jsonify({
+            "user": 1,  # Assuming user ID
+            "date": "2023-12-10",
+            "start_time": "12:00:00",
+            "end_time": "14:00:00",
+            'discount_price' : 100*2
+        })
+
+
 
 if __name__ == '__main__':
     app.run(debug=True) 
