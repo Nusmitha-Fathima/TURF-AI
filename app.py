@@ -180,63 +180,59 @@ def get_json_data():
 
 
 @app.route('/formation_img', methods=['POST', 'GET'])
-def hformation_img():
+def formation_img():
     if request.method == 'POST':
-            image_file = request.files['image']
-            image_array = np.frombuffer(image_file.read(), np.uint8)
-            img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        image_file = request.files['image']
+        image_array = np.frombuffer(image_file.read(), np.uint8)
+        img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        print(img,'__________________________________________________')
 
-            if img is not None:
-                # Display the image using OpenCV
-                cv2.imshow('Image', img)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+        if img is not None:
+            haar_cascade = cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
+            image = cv2.resize(img, (800, 800))
 
-                return "Image displayed successfully"
+            try:
+                faces = haar_cascade.detectMultiScale(image, 1.1, 9)
+                if len(faces) == 1:
+                    x, y, width, height = faces[0]
+                    cropped_image = image[y-30:y + height+60, x-30:x + width+30]
+                    temp_filename = tempfile.mktemp(suffix='.jpg')
+                    cv2.imwrite(temp_filename, cropped_image)
 
-    return "Invalid request"    
-        # try:
-    #     image_file = request.files['image']
+                    return send_file(temp_filename, as_attachment=True, download_name='cropped_image.jpg')
+                
+                elif len(faces) >= 2:
+                    temp_filename = tempfile.mktemp(suffix='.jpg')
+                    cv2.imwrite(temp_filename, image)
 
-        # image_array = np.frombuffer(image_file.read(), np.uint8)
-        # img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+                    return send_file(temp_filename, as_attachment=True, download_name='image.jpg')
+                
+            
+            except:
+                image = cv2.imread('face 13.png')
+                temp_filename = tempfile.mktemp(suffix='.png')
+                cv2.imwrite(temp_filename, image)
 
-        # if img is not None:
-        #     haar_cascade = cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
-        #     image = cv2.resize(img, (300, 400))
+                return send_file(temp_filename, as_attachment=True, download_name='image.png')
+        
+        else:
+            image = cv2.imread('face 13.png')
+            temp_filename = tempfile.mktemp(suffix='.jpg')
+            cv2.imwrite(temp_filename, image)
 
-    #         try:
-    #             faces = haar_cascade.detectMultiScale(image, 1.1, 9)
+            return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
 
-    #             if len(faces) == 1:
-    #                 x, y, width, height = faces[0]
-    #                 cropped_image = image[y:y + height, x:x + width]
 
-    #                 # Save cropped image as a temporary file
-    #                 _, temp_filename = tempfile.mkstemp(suffix=".jpg")
-    #                 cv2.imwrite(temp_filename, cropped_image)
 
-    #                 # Return the temporary file
-    #                 return send_file(temp_filename, mimetype='image/jpeg', as_attachment=True, download_name='cropped_image.jpg')
+    image = cv2.imread('face 13.png')
+    temp_filename = tempfile.mktemp(suffix='.png')
+    cv2.imwrite(temp_filename, image)
 
-    #         except:
-    #             # Save original image as a temporary file
-    #             _, temp_filename = tempfile.mkstemp(suffix=".jpg")
-    #             cv2.imwrite(temp_filename, image)
-
-    #             # Return the temporary file
-    #             return send_file(temp_filename, mimetype='image/jpeg', as_attachment=True, download_name='original_image.jpg')
-
-    #     elif img is None:
-    #         image_path = 'face 13.jpg'
-    #         return send_file(image_path, mimetype='image/jpeg')
-
-    #     else:
-    #         image_path = 'face 13.jpg'
-    #         return send_file(image_path, mimetype='image/jpeg')
-
-    # except Exception as e:
-    #     return jsonify({"error": 'error'})
+    return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
+# image = cv2.imread('face 13.png')
+# temp_filename = tempfile.mktemp(suffix='.png')
+# cv2.imwrite(temp_filename, image)
+# return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
 
 
 @app.route('/dynamic_discount')
@@ -317,7 +313,7 @@ def modify_price():
             "date": "2023-12-10",
             "start_time": "12:00:00",
             "end_time": "14:00:00",
-            'discount_price' : 100*2
+            'discount_price' : 100*4
         })
 
 
