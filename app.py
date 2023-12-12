@@ -2,6 +2,7 @@
 
 from flask import Flask,jsonify,request,send_file
 import datetime as dt
+from datetime import datetime
 import requests
 import json
 from bs4 import BeautifulSoup as soup
@@ -181,64 +182,87 @@ def get_json_data():
 
 @app.route('/formation_img', methods=['POST', 'GET'])
 def formation_img():
-    if request.method == 'POST':
-        image_file = request.files['image']
-        image_array = np.frombuffer(image_file.read(), np.uint8)
-        img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        print(img,'__________________________________________________')
+    try:
+        if request.method == 'POST':
+            image_file = request.files['image']
+            image_array = np.frombuffer(image_file.read(), np.uint8)
+            img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            
+            print(img,'__________________________________________________')
 
-        if img is not None:
-            haar_cascade = cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
-            image = cv2.resize(img, (800, 800))
-
-            try:
-                faces = haar_cascade.detectMultiScale(image, 1.1, 9)
-                if len(faces) == 1:
-                    x, y, width, height = faces[0]
-                    cropped_image = image[y-30:y + height+60, x-30:x + width+30]
-                    temp_filename = tempfile.mktemp(suffix='.jpg')
-                    cv2.imwrite(temp_filename, cropped_image)
-
-                    return send_file(temp_filename, as_attachment=True, download_name='cropped_image.jpg')
+            if img is not None:
+                haar_cascade = cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
+                image = cv2.resize(img, (300, 300))
                 
-                elif len(faces) >= 2:
+
+                try:
+                    faces = haar_cascade.detectMultiScale(image, 1.1, 9)
+                    if len(faces) == 1:
+                        x, y, width, height = faces[0]
+                        cropped_image = image[y-30:y + height+60, x-30:x + width+30]
+                        temp_filename = tempfile.mktemp(suffix='.jpg')
+                        cv2.imwrite(temp_filename, cropped_image)
+
+                        return send_file(temp_filename, as_attachment=True, download_name='cropped_image.jpg')
+                    
+                    elif len(faces) >= 2:
+                        temp_filename = tempfile.mktemp(suffix='.jpg')
+                        cv2.imwrite(temp_filename, image)
+
+                        return send_file(temp_filename, as_attachment=True, download_name='image.jpg')
+                    
+                    else:
+                        temp_filename = tempfile.mktemp(suffix='.jpg')
+                        cv2.imwrite(temp_filename, image)
+
+                        return send_file(temp_filename, as_attachment=True, download_name='image.jpg')
+
+                    
+                    
+                    
+                
+                except:
+                    image = cv2.imread('face 13.png')
                     temp_filename = tempfile.mktemp(suffix='.jpg')
                     cv2.imwrite(temp_filename, image)
 
                     return send_file(temp_filename, as_attachment=True, download_name='image.jpg')
-                
             
-            except:
+            else:
                 image = cv2.imread('face 13.png')
-                temp_filename = tempfile.mktemp(suffix='.png')
+                temp_filename = tempfile.mktemp(suffix='.jpg')
                 cv2.imwrite(temp_filename, image)
 
-                return send_file(temp_filename, as_attachment=True, download_name='image.png')
-        
-        else:
-            image = cv2.imread('face 13.png')
-            temp_filename = tempfile.mktemp(suffix='.jpg')
-            cv2.imwrite(temp_filename, image)
+                return send_file(temp_filename, as_attachment=True, download_name='cropped_image.jpg')
 
-            return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
+    except:
 
+        image = cv2.imread('face 13.png')
+        temp_filename = tempfile.mktemp(suffix='.png')
+        cv2.imwrite(temp_filename, image)
 
-
-    image = cv2.imread('face 13.png')
-    temp_filename = tempfile.mktemp(suffix='.png')
-    cv2.imwrite(temp_filename, image)
-
-    return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
-# image = cv2.imread('face 13.png')
-# temp_filename = tempfile.mktemp(suffix='.png')
-# cv2.imwrite(temp_filename, image)
-# return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
+        return send_file(temp_filename, as_attachment=True, download_name='cropped_image.png')
 
 
-@app.route('/dynamic_discount')
+@app.route('/dynamic_discount',methods=['POST','GET'])
 def dynamic_discount():
+
+    data = request.get_json()
+
+    start_time = data['date'] + " " + data['start_time']
+    end_time   = data['date'] + " " + data['end_time']
+
+    time1 = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+    time2 = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+    time_difference = time2 - time1
+
+    print(data)
     predict_data=[]
-    date_string='06,12,1998'         #____________________________________________________________________
+
+
+
+
+    date_string=data['date']        #____________________________________________________________________
     date_object = datetime.strptime(date_string, '%d,%m,%Y')
     day_format = date_object.strftime('%A')
     if day_format == 'Sunday' or 'Saturday':
@@ -248,7 +272,7 @@ def dynamic_discount():
     else:
         predict_data.append(2)
 
-    time_string = '06:00:00'      #_______________________________________________________________________
+    time_string = data['start_time']      #_______________________________________________________________________
     input_time = datetime.strptime(time_string, '%H:%M:%S').time()
 
     if input_time < datetime.strptime('12:00:00', '%H:%M:%S').time():
@@ -260,8 +284,7 @@ def dynamic_discount():
 
     
     #   customer level
-    # play_ratio= 'no_of_play'/90  _____________________________________________________________________
-    play_ratio=.30
+    play_ratio=data['booking_count']/90
     if play_ratio <=.05:
         predict_data.append(0)
     if play_ratio < .35:
@@ -281,7 +304,7 @@ def dynamic_discount():
 
 
 
-    turf_rating = 5 #____________________________________________________________________________
+    turf_rating = data['turf'] #____________________________________________________________________________
     predict_data.append(turf_rating)
 
 
@@ -298,8 +321,10 @@ def dynamic_discount():
     result =model.predict([predict_data])*1000
 
 
-    # result =predict_data
-    return {'discount_price':str(result),'list':predict_data}
+    result =predict_data
+    return jsonify({"discount_price": result})
+
+    
 
 
     # return jsonify()
