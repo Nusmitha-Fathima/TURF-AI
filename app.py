@@ -138,7 +138,7 @@ def formation_img():
 
             if img is not None:
                 haar_cascade = cv2.CascadeClassifier('haarcascade_mcs_upperbody.xml')
-                image = cv2.resize(img, (300, 300))
+                image = cv2.resize(img, (800, 800))
                 
                 try:
                     faces = haar_cascade.detectMultiScale(image, 1.1, 9)
@@ -184,18 +184,18 @@ def formation_img():
 def dynamic_discount():
 
     data = request.get_json()
-    print(data['search text'])
+    print(data)
 
     start_time = data['date'] + " " + data['start_time']
     end_time   = data['date'] + " " + data['end_time']
     print(start_time)
     print(end_time)
 
-    time1 = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-    time2 = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-    time_difference = str(time2 - time1)
-    total_hour = int(time_difference.split(':')[0])
-    print('total_hour',total_hour)
+    # time1 = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+    # time2 = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+    # time_difference = str(time2 - time1)
+    # total_hour = int(time_difference.split(':')[0])
+    # print('total_hour',total_hour)
     predict_data=[]
 
     date_string=data['date']        #____________________________________________________________________
@@ -220,14 +220,17 @@ def dynamic_discount():
          predict_data.append(0)
     
     #   customer level
-    play_ratio=data['booking_count']/90
-    if play_ratio <=.05:
-        predict_data.append(0)
-    if play_ratio < .35:
+    try:
+        play_ratio=data['booking_count']/90
+        if play_ratio <=.05:
+            predict_data.append(0)
+        if play_ratio < .35:
+            predict_data.append(1)
+        if play_ratio >= .35:
+            predict_data.append(2)
+        print('play_ratio',play_ratio)
+    except:
         predict_data.append(1)
-    if play_ratio >= .35:
-        predict_data.append(2)
-    print('play_ratio',play_ratio)
 
     df=pd.read_csv('weatherdata.csv')
     input_time = datetime.strptime(time_string, '%H:%M:%S').time()
@@ -238,8 +241,11 @@ def dynamic_discount():
     temperature=list(df[df['time']==time]['temp'])[0]
     predict_data.append(temperature)
 
-    turf_rating = data['turf'] #____________________________________________________________________________
-    predict_data.append(turf_rating)
+    try:
+        turf_rating = data['turf_rating'] #____________________________________________________________________________
+        predict_data.append(turf_rating)
+    except:
+        predict_data.append(4)
 
     weather_conditions=['T-Storms','Scattered T-Storms']
     weather_c='Scattered T-Storms'   #___________________________________________________
@@ -251,14 +257,14 @@ def dynamic_discount():
     print('predict_data',predict_data)
 
     model=joblib.load('dynamic_discound_model')
-    result =model.predict([predict_data]) * total_hour * data['price']
+    result =model.predict([predict_data])  * data['price']
 
-    actual_price = data['price']
+    data['discount_amount']=int(result[0])
 
-    return jsonify({"discount_price": result[0]})
+    return jsonify({"data": data})
 
 
-@app.route('/search_response',methods=['POST','GET'])
+@app.route('/turf_search_response',methods=['POST','GET'])
 def search_response():
  
     data = request.get_json()  
